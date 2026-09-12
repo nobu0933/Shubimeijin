@@ -1,0 +1,447 @@
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh; 
+  background-color: #1a1a1a;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+
+/* ★ 修正: 背景色を緑(#2e8b57)から黒(#111111)に変更 */
+#game-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 100vw;
+  max-height: 100vh;
+  max-height: 100dvh;
+  aspect-ratio: 9 / 16;
+  background-color: #111111; 
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+}
+
+#gameCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  image-rendering: pixelated; 
+  image-rendering: crisp-edges;
+}
+
+#status-display {
+  position: absolute;
+  bottom: 130px; 
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: bold;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+/* 攻撃画面スタイル */
+#attack-screen {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.92);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: white;
+  padding: 30px 20px;
+}
+#attack-screen.hidden {
+  display: none;
+}
+#attack-score {
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+  border-bottom: 2px solid #fff;
+  padding-bottom: 12px;
+  margin-bottom: 15px;
+  width: 100%;
+}
+#attack-log {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.8;
+  padding-bottom: 15px;
+}
+#defense-start-btn {
+  background: #ff4081;
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 25px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+}
+#defense-start-btn:active {
+  transform: scale(0.95);
+  background: #c2185b;
+}
+
+.controls {
+  position: absolute;
+  bottom: 25px;
+  width: 100%;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.controls * {
+  pointer-events: auto;
+}
+
+.pad-container {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  touch-action: none;
+  backdrop-filter: blur(2px);
+}
+.pad-stick {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 36px; height: 36px;
+  background: radial-gradient(circle, #ffffff 0%, #aaaaaa 100%);
+  border: 2px solid #444;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3);
+}
+
+.action-btn {
+  width: 80px; height: 80px;
+  background: radial-gradient(circle, #ff4081 0%, #c2185b 100%);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  touch-action: none;
+}
+.action-btn.holding {
+  background: radial-gradient(circle, #ffeb3b 0%, #fbc02d 100%);
+  color: #333;
+  transform: scale(0.92);
+}
+
+/* プロローグ画面スタイル */
+#prologue-screen {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: #000;
+  z-index: 100; /* 他の画面より手前に表示 */
+  display: flex;
+  flex-direction: column;
+}
+#prologue-screen.hidden {
+  display: none !important;
+}
+#prologue-image-area {
+  flex: 1; 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent; /* ★ 透明に変更 */
+  overflow: hidden;
+}
+#prologue-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain; /* アスペクト比を保って画像を表示 */
+}
+#prologue-message-box {
+  height: 160px; /* テキストボックスの高さ */
+  background: rgba(0, 0, 0, 0.85);
+  border-top: 2px solid #fff;
+  color: #fff;
+  padding: 15px 20px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer; /* タップできることを示す */
+}
+#prologue-name {
+  font-weight: bold;
+  font-size: 16px;
+  color: #ffeb3b; /* 名前の色は黄色に */
+  margin-bottom: 8px;
+}
+#prologue-text {
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap; /* \n で改行できるようにする */
+}
+
+/* ★ ホーム画面スタイル */
+#home-screen {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(15, 23, 42, 0.95);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+}
+#home-screen.hidden { display: none !important; }
+
+.home-title {
+  font-size: 26px;
+  margin-bottom: 40px;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.main-menu-btn {
+  background: linear-gradient(135deg, #ff4081, #c2185b);
+  color: white;
+  border: 2px solid #fff;
+  padding: 14px 45px;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 30px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(255, 64, 129, 0.4);
+  transition: transform 0.1s;
+}
+.main-menu-btn:active {
+  transform: scale(0.95);
+}
+
+/* ★ 対戦相手画面スタイル */
+#opponent-screen {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(10, 15, 30, 0.95);
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: white;
+  padding: 20px 15px;
+}
+#opponent-screen.hidden { display: none !important; }
+
+#opponent-school-title {
+  font-size: 20px;
+  color: #ffeb3b;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #ffeb3b;
+  padding-bottom: 5px;
+}
+
+#opponent-lineup-container {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  margin-bottom: 15px;
+}
+
+#opponent-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: center;
+}
+
+#opponent-table th {
+  background: #1e293b;
+  color: #94a3b8;
+  padding: 8px 4px;
+  border-bottom: 1px solid #334155;
+}
+
+#opponent-table td {
+  padding: 8px 4px;
+  border-bottom: 1px solid #1e293b;
+}
+
+#start-game-btn {
+  margin-bottom: 10px;
+}
+
+/* ★ 追加：対戦打者情報のスタイル */
+#batter-display {
+  position: absolute;
+  top: 75px; /* スコアボードの下付近に配置 */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 4px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 12;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+#home-screen {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  
+  /* 画像の暗転フィルターを外し、そのままの明るさで表示 */
+  background-image: url('stadium.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  
+  /* --- ★配置を上に寄せるための変更 --- */
+  justify-content: flex-start; /* centerから変更: 上寄せにする */
+  padding-top: 15vh; /* 画面上部からの余白（数値を変えて高さを調整できます） */
+  align-items: center;
+  
+  color: white;
+  /* 画像が明るくても文字が読めるように、文字に少し影をつける（オプション） */
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+#home-screen.hidden { display: none !important; }
+
+#change-school-btn {
+  position: absolute;
+  top: 15px; 
+  right: 15px; 
+  
+  /* ▼ ここを少し小さく調整しました ▼ */
+  padding: 8px 16px;    /* 12px 24px から縮小 */
+  font-size: 14px;      /* 18px から縮小 */
+  
+  font-weight: bold;
+  background-color: #ff9800; /* オレンジ色 */
+  color: #000000;       /* 文字色は黒 */
+  border: 2px solid #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  transition: transform 0.1s;
+}
+
+#change-school-btn:active {
+  transform: scale(0.95); /* 押したときに少しへこむ */
+}
+
+/* =========================================
+   2. タイトルのデザイン（大きく・かっこよく）
+========================================= */
+.home-title {
+  font-size: 40px;      /* 26pxから40pxに大きく */
+  font-weight: 900;     /* 文字を極太に */
+  letter-spacing: 2px;  /* 文字の間隔を少し開ける */
+  margin-bottom: 20px;
+  color: #ffffff;
+  
+  /* 野球ゲームらしい、黒い縁取りとドロップシャドウ */
+  text-shadow: 
+    2px 2px 0px #333,
+    -1px -1px 0px #333,
+    1px -1px 0px #333,
+    -1px 1px 0px #333,
+    0 5px 15px rgba(0, 0, 0, 0.8);
+}
+
+/* =========================================
+   3. ステージ名のバッジ（緑から赤へ変更）
+========================================= */
+.home-stage-badge {
+  font-size: 16px;
+  font-weight: bold;
+  color: #ff5252;       /* 文字色を赤色に */
+  background: rgba(0, 0, 0, 0.6); /* 背景を少し暗くして文字を目立たせる */
+  border: 2px solid #ff5252; /* 枠線も赤色に */
+  padding: 6px 20px;
+  border-radius: 20px;
+  margin-bottom: 35px;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 10px rgba(255, 82, 82, 0.4); /* 赤い光彩（影）をつける */
+}
+
+.main-menu-btn {
+  /* ▼ くすんだ赤色に変更（グラデーション指定は消します） ▼ */
+  background: #a04040; 
+  color: white;
+  border: 2px solid #fff;
+  padding: 14px 45px;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 8px; /* 前回の四角設定 */
+  
+  /* ▼ 配置をもっと下にする（数値を大きくするとさらに下がります） ▼ */
+  margin-top: 50px; 
+  
+  cursor: pointer;
+  /* 影の色もくすんだ赤に合わせて自然にしました */
+  box-shadow: 0 4px 15px rgba(160, 64, 64, 0.4);
+  transition: transform 0.1s;
+}
+
+.main-menu-btn:active {
+  transform: scale(0.95);
+}
+
+/* 対戦画面のボタン例 */
+#start-btn, #opponent-home-btn {
+  padding: 10px 16px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #ffffff;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+}
+
+#start-btn {
+  background-color: #22c55e;
+}
+
+#opponent-home-btn {
+  background-color: #4b5563;
+}
+
+#results-screen.hidden { 
+  display: none !important; 
+}

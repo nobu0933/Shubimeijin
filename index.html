@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>目指せ！守備名人</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="game-container">
+    <canvas id="gameCanvas" width="360" height="640"></canvas>
+
+    <div id="status-display">打球に追いついて捕球せよ！</div>
+
+    <!-- プロローグ画面 -->
+    <div id="prologue-screen" class="hidden">
+      <div id="prologue-image-area">
+        <img id="prologue-image" src="" alt="プロローグ画像">
+      </div>
+      <div id="prologue-message-box">
+        <div id="prologue-name"></div>
+        <div id="prologue-text"></div>
+      </div>
+    </div>
+
+    <!-- ★追加: 学校名設定画面 -->
+    <div id="school-name-screen" class="hidden">
+      <h2>高校名決定</h2>
+      <p>あなたの高校名を入力してください（5文字以内）</p>
+      <div style="margin: 20px 0; display: flex; align-items: center; justify-content: center; gap: 5px;">
+        <!-- maxlength="10" で入力数を制限 -->
+        <input type="text" id="school-input" maxlength="5" placeholder="守備" style="padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; width: 180px;">
+        <span style="font-size: 18px; font-weight: bold; color: white;">高校</span>
+      </div>
+      <button id="save-school-btn" class="main-menu-btn">決定</button>
+    </div>
+
+    <!-- ★修正: インラインの position: relative を削除 -->
+    <div id="home-screen">
+      <!-- 右上の小ボタン（高校名変更） -->
+      <button id="change-school-btn">高校名変更</button>
+
+      <h1 class="home-title">目指せ！守備名人</h1>
+      <!-- 現在の回戦（ステージ名）表示領域 -->
+      <div id="home-stage-display" class="home-stage-badge">地方大会 初戦</div>
+
+      <!-- ▼ 2×2のグリッド配置（横幅縮小・画面中央配置） ▼ -->
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); column-gap: 12px; row-gap: 0px; width: 100%; max-width: 280px; justify-content: center; margin: 20px auto 0;">
+        <button id="match-btn" class="main-menu-btn" style="white-space: nowrap; margin: 0; padding-left: 4px; padding-right: 4px;">ストーリー</button>
+        <button id="practice-btn" class="main-menu-btn" style="white-space: nowrap; margin: 0; padding-left: 4px; padding-right: 4px;">練習試合</button>
+        <button id="results-btn" class="main-menu-btn" style="white-space: nowrap; margin: 5px 0 0 0; padding-left: 4px; padding-right: 4px;">成績</button>
+        <button id="vs-mode-btn" class="main-menu-btn" style="white-space: nowrap; margin: 5px 0 0 0; padding-left: 4px; padding-right: 4px;">対戦モード</button>
+      </div>
+    </div>
+
+<!-- 練習試合 難易度選択画面 -->
+<div id="practice-select-screen" class="hidden">
+  <h2 style="margin-bottom: 20px;">練習試合 - 難易度選択</h2>
+  
+  <div style="display: flex; flex-direction: column; gap: 15px; width: 200px;">
+  <!-- かんたん：鮮やかな緑 -->
+  <button id="practice-easy-btn" style="padding: 12px; font-weight: bold; cursor: pointer; background-color: #22c55e; color: #ffffff; border: none; border-radius: 9999px;">かんたん</button>
+  
+  <!-- ふつう：黄色（視認性を確保するため文字色を黒系に） -->
+  <button id="practice-normal-btn" style="padding: 12px; font-weight: bold; cursor: pointer; background-color: #facc15; color: #0f172a; border: none; border-radius: 9999px;">ふつう</button>
+  
+  <!-- むずかしい：赤 -->
+  <button id="practice-hard-btn" style="padding: 12px; font-weight: bold; cursor: pointer; background-color: #ef4444; color: #ffffff; border: none; border-radius: 9999px;">むずかしい</button>
+</div>
+
+  <button id="practice-back-btn" style="margin-top: 30px; padding: 10px 16px; font-size: 15px; font-weight: bold; color: #ffffff; background-color: #4b5563; border: none; border-radius: 9999px; cursor: pointer; text-align: center; white-space: nowrap; box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent;">ホームに戻る</button>
+  
+</div>
+
+<!-- 成績表示画面 -->
+<div id="results-screen" class="hidden" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; flex-direction: column; align-items: center; justify-content: flex-start; padding: 20px 10px 40px; box-sizing: border-box; overflow-y: auto;">
+  <h2 id="results-title" style="color: #facc15; margin-bottom: 12px; margin-top: 0; font-size: 20px;">ストーリー累計成績</h2>
+
+  <!-- 野手成績テーブル -->
+  <div id="stats-batters-container" style="width: 100%; max-width: 340px; background: rgba(15, 23, 42, 0.85); border-radius: 8px; padding: 6px; box-sizing: border-box; margin-bottom: 15px;">
+    <h3 style="color: white; font-size: 14px; margin: 0 0 6px 4px; text-align: left;">打者成績</h3>
+    <table style="width: 100%; border-collapse: collapse; font-size: 12px; color: white; text-align: center;">
+      <thead>
+        <tr style="border-bottom: 1px solid #475569; background: rgba(255,255,255,0.1);">
+          <th>選手名</th>
+      <th>打率</th>
+      <th>出塁率</th> <!-- 追加 -->
+      <th>長打率</th> <!-- 追加 -->
+      <th>OPS</th>    <!-- 追加 -->
+      <th>打数</th>
+      <th>安打</th>
+      <th>本塁打</th>
+      <th>打点</th>
+      <th>三振</th>
+      <th>四球</th>
+      <th>失策</th>
+        </tr>
+      </thead>
+      <tbody id="stats-batters-body"></tbody>
+    </table>
+  </div>
+
+  <!-- 投手成績テーブル (class="hidden" を削除し、見出しを追加しました) -->
+  <div id="stats-pitcher-container" style="width: 100%; max-width: 340px; background: rgba(15, 23, 42, 0.85); border-radius: 8px; padding: 10px; box-sizing: border-box;">
+    <h3 style="color: white; font-size: 14px; margin: 0 0 6px 4px; text-align: left;">投手成績</h3>
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: white; text-align: center;">
+      <thead>
+        <tr style="border-bottom: 1px solid #475569; background: rgba(255,255,255,0.1);">
+          <th style="padding: 8px 4px;">投手名</th>
+          <th style="padding: 8px 4px;">防御率</th>
+          <th style="padding: 8px 4px;">試合</th>
+          <th style="padding: 8px 4px;">投球回</th>
+          <th style="padding: 8px 4px;">被安打</th>
+          <th style="padding: 8px 4px;">失点</th>
+	  <th style="padding: 8px 4px;">自責</th> <!-- ★追加 -->
+        </tr>
+      </thead>
+      <tbody id="stats-pitcher-body"></tbody>
+    </table>
+  </div>
+
+<div style="margin-top: 15px; margin-bottom: 20px; display: flex; justify-content: center; flex-shrink: 0;">
+    <button id="results-back-btn" style="padding: 8px 24px; background: #64748b; color: white; font-weight: bold; border: none; border-radius: 20px; cursor: pointer; font-size: 14px;">ホームに戻る</button>
+  </div>
+</div>
+
+    <!-- ★追加: 対戦相手オーダー紹介画面 -->
+    <div id="opponent-screen" class="hidden">
+      <h2 id="opponent-school-title">対戦相手オーダー</h2>
+      <div id="opponent-lineup-container">
+        <table id="opponent-table">
+          <thead>
+            <tr>
+              <th>打順</th>
+              <th>名前 (守備)</th>
+              <th>走力</th>
+              <th>打力</th>
+            </tr>
+          </thead>
+          <tbody id="opponent-lineup-body"></tbody>
+        </table>
+      </div>
+      <div id="opponent-btn-container" style="display: flex; justify-content: center; gap: 12px; width: 100%; max-width: 340px; margin: 15px auto 0;">
+  <button id="start-btn">試合開始</button>
+  <button id="opponent-home-btn">ホームに戻る</button>
+</div>
+    </div>
+
+    <!-- 攻撃時のスコア・ログ画面 -->
+    <div id="attack-screen" class="hidden">
+      <div id="attack-score"></div>
+      <div id="attack-log"></div>
+      <button id="defense-start-btn">守備につく</button>
+    </div>
+
+    <div class="controls">
+      <div class="pad-container" id="padContainer">
+        <div class="pad-stick" id="padStick"></div>
+      </div>
+
+      <div class="action-btn" id="actionBtn">捕球</div>
+    </div>
+  </div>
+
+  <!-- スクリプトの読み込み順序 -->
+  <script src="story.js"></script>
+  <script src="opponent.js"></script>
+  <script src="data.js"></script>
+  <script src="game.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
