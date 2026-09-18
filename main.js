@@ -53,6 +53,14 @@ document.getElementById('prologue-screen')?.addEventListener('pointerdown', () =
 function showHomeScreen() {
   isPlaying = false;
   
+  const pauseBtn = document.getElementById('pause-btn');
+  if (pauseBtn) pauseBtn.style.display = 'none';
+  // ▲▲▲ 追加ここまで ▲▲▲
+
+  if (typeof updateOpponentDataByLevel === 'function') {
+    updateOpponentDataByLevel();
+  }
+
   if (typeof updateOpponentDataByLevel === 'function') {
     updateOpponentDataByLevel();
   }
@@ -232,6 +240,12 @@ function showOpponentScreen() {
     startBtn.onclick = () => {
       // 対戦相手画面を非表示にする
       screen.classList.add('hidden');
+
+      // ▼▼▼ 追加：試合開始時にポーズボタンを表示 ▼▼▼
+      const pauseBtn = document.getElementById('pause-btn');
+      if (pauseBtn) pauseBtn.style.display = 'block';
+      // ▲▲▲ 追加ここまで ▲▲▲
+
       // 試合開始
       if (typeof isVsMode !== 'undefined' && isVsMode) {
         if (typeof startInning === 'function') startInning();
@@ -407,6 +421,27 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('opponent-home-btn')?.addEventListener('click', () => {
     if (typeof showHomeScreen === 'function') showHomeScreen();
   });
+
+  const homeScreen = document.getElementById('home-screen');
+  if (homeScreen) {
+    const settingsBtn = document.createElement('button');
+    settingsBtn.innerHTML = '⚙️ 設定';
+    // 画面の左上にわかりやすく配置
+    settingsBtn.style.position = 'absolute';
+    settingsBtn.style.top = '10px';
+    settingsBtn.style.left = '10px';
+    settingsBtn.style.background = 'rgba(0, 0, 0, 0.6)';
+    settingsBtn.style.color = 'white';
+    settingsBtn.style.border = '1px solid #4b5563';
+    settingsBtn.style.borderRadius = '20px';
+    settingsBtn.style.padding = '6px 12px';
+    settingsBtn.style.fontSize = '14px';
+    settingsBtn.style.cursor = 'pointer';
+    settingsBtn.style.zIndex = '10';
+    settingsBtn.onclick = showSettingsModal;
+    
+    homeScreen.appendChild(settingsBtn);
+  }
 
   // 学校名変更ボタン
   document.getElementById('change-school-btn')?.addEventListener('click', showSchoolNameScreen);
@@ -697,6 +732,72 @@ function showVsSetupScreen() {
       { name: p2Name, level: p2Level }
     );
   };
+}
+
+function showSettingsModal() {
+  const modal = document.createElement('div');
+  modal.id = 'settings-modal';
+  modal.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; display:flex; justify-content:center; align-items:center;';
+
+  const content = document.createElement('div');
+  content.style.cssText = 'background:#1f2937; padding:20px; border-radius:8px; color:white; min-width:300px; text-align:center;';
+  content.innerHTML = '<h3 style="margin-top:0; border-bottom:1px solid #4b5563; padding-bottom:10px;">設定</h3>';
+
+  // トグルボタン用のCSS（横並びレイアウトを追加）
+  const toggleStyle = `
+    .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4b5563; transition: .3s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+    input:checked + .slider { background-color: #3b82f6; }
+    input:checked + .slider:before { transform: translateX(20px); }
+    .setting-item { display: flex; justify-content: center; align-items: center; gap: 15px; margin: 15px 0 25px; font-size: 15px; font-weight: bold; }
+    .setting-label { width: 80px; text-align: center; transition: color 0.3s; }
+  `;
+  content.innerHTML += `<style>${toggleStyle}</style>`;
+
+  // 塁状況表示の設定
+  const isRotated = localStorage.getItem('setting_rotate_runner_ui') === 'true';
+  content.innerHTML += `
+    <div style="color: #9ca3af; font-size: 12px; margin-top: 10px;">塁状況の表示</div>
+    <div class="setting-item">
+      <span class="setting-label" id="label-base-down" style="color: ${isRotated ? '#6b7280' : '#ffffff'};">本塁が下</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="check-rotate-ui" ${isRotated ? 'checked' : ''} 
+          onchange="document.getElementById('label-base-up').style.color = this.checked ? '#ffffff' : '#6b7280'; document.getElementById('label-base-down').style.color = this.checked ? '#6b7280' : '#ffffff';">
+        <span class="slider"></span>
+      </label>
+      <span class="setting-label" id="label-base-up" style="color: ${isRotated ? '#ffffff' : '#6b7280'};">本塁が上</span>
+    </div>
+  `;
+
+  // 送球矢印の設定
+  const showArrow = localStorage.getItem('setting_show_throw_arrow') !== 'false';
+  content.innerHTML += `
+    <div style="color: #9ca3af; font-size: 12px;">野手の送球矢印</div>
+    <div class="setting-item">
+      <span class="setting-label" id="label-arrow-off" style="color: ${showArrow ? '#6b7280' : '#ffffff'};">塁上のみ</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="check-show-arrow" ${showArrow ? 'checked' : ''} 
+          onchange="document.getElementById('label-arrow-on').style.color = this.checked ? '#ffffff' : '#6b7280'; document.getElementById('label-arrow-off').style.color = this.checked ? '#6b7280' : '#ffffff';">
+        <span class="slider"></span>
+      </label>
+      <span class="setting-label" id="label-arrow-on" style="color: ${showArrow ? '#ffffff' : '#6b7280'};">常に表示</span>
+    </div>
+  `;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.innerText = '閉じる';
+  closeBtn.style.cssText = 'width:100%; padding:12px; margin-top:10px; background:#3b82f6; color:white; font-weight:bold; border:none; border-radius:4px; cursor:pointer; font-size: 16px;';
+  closeBtn.onclick = () => {
+    localStorage.setItem('setting_rotate_runner_ui', document.getElementById('check-rotate-ui').checked);
+    localStorage.setItem('setting_show_throw_arrow', document.getElementById('check-show-arrow').checked);
+    modal.remove();
+  };
+
+  content.appendChild(closeBtn);
+  modal.appendChild(content);
+  document.body.appendChild(modal);
 }
 
 // 対戦オーダー確認画面（横並び）を表示する関数

@@ -42,6 +42,165 @@ window.addEventListener('DOMContentLoaded', () => {
   initGameData();
 });
 
+// --- ポーズ機能・設定画面の追加 ---
+
+let isPaused = false; // ポーズ状態を管理
+
+function createPauseMenu() {
+  // 既に存在する場合は作成しない
+  if (document.getElementById('pause-overlay')) return;
+
+  const container = document.getElementById('game-container') || document.body;
+
+  // 1. ポーズボタン（画面左上に配置・初期は非表示）
+  const pauseBtn = document.createElement('button');
+  pauseBtn.id = 'pause-btn';
+  pauseBtn.innerText = '⏸ 一時停止';
+  pauseBtn.style.cssText = `
+    position: absolute; top: 5px; left: 10px; z-index: 100;
+    padding: 8px 12px; font-size: 14px; font-weight: bold;
+    color: white; background-color: rgba(0, 0, 0, 0.6);
+    border: 2px solid white; border-radius: 8px; cursor: pointer;
+    display: none; /* ホーム画面では非表示 */
+  `;
+  pauseBtn.onclick = togglePause;
+  container.appendChild(pauseBtn);
+
+  // 2. ポーズ画面（オーバーレイ） - 背景を完全に不透明（rgba(15, 23, 42, 1.0)）に変更
+  const overlay = document.createElement('div');
+  overlay.id = 'pause-overlay';
+  overlay.style.cssText = `
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(15, 23, 42, 1.0); /* 後ろが透けないように不透明化 */
+    z-index: 400;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    color: white; padding: 20px; box-sizing: border-box;
+  `;
+
+  // トグル用の状態を取得
+  const isRotated = localStorage.getItem('setting_rotate_runner_ui') === 'true';
+  const showArrow = localStorage.getItem('setting_show_throw_arrow') !== 'false';
+
+  // 3. トグルUIを含むポーズ画面内のHTML構成
+  overlay.innerHTML = `
+    <style>
+      .pause-toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+      .pause-toggle-switch input { opacity: 0; width: 0; height: 0; }
+      .pause-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4b5563; transition: .3s; border-radius: 24px; }
+      .pause-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+      .pause-toggle-switch input:checked + .pause-slider { background-color: #3b82f6; }
+      .pause-toggle-switch input:checked + .pause-slider:before { transform: translateX(20px); }
+      .pause-setting-item { display: flex; justify-content: center; align-items: center; gap: 15px; margin: 15px 0 25px; font-size: 15px; font-weight: bold; }
+      .pause-setting-label { width: 80px; text-align: center; transition: color 0.3s; }
+    </style>
+
+    <h2 style="margin: 0 0 15px 0; color: #fbbf24;">⏸ 一時停止中</h2>
+    
+    <!-- スコア表示エリア -->
+    <div id="pause-score-area" style="width: 100%; max-width: 400px; margin-bottom: 20px; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px;"></div>
+    
+    <!-- 設定エリア (トグルUI) -->
+    <div style="margin-bottom: 25px; text-align: center; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; width: 100%; max-width: 400px;">
+      <h3 style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid #fff; padding-bottom: 5px;">⚙️ 設定</h3>
+      
+      <div style="color: #9ca3af; font-size: 12px; margin-top: 10px;">送球矢印の表示</div>
+      <div class="pause-setting-item">
+        <span class="pause-setting-label" id="pause-label-arrow-off" style="color: ${showArrow ? '#6b7280' : '#ffffff'};">塁上のみ</span>
+        <label class="pause-toggle-switch">
+          <input type="checkbox" id="setting-arrow" ${showArrow ? 'checked' : ''}>
+          <span class="pause-slider"></span>
+        </label>
+        <span class="pause-setting-label" id="pause-label-arrow-on" style="color: ${showArrow ? '#ffffff' : '#6b7280'};">常に表示</span>
+      </div>
+
+      <div style="color: #9ca3af; font-size: 12px;">塁状況の表示</div>
+      <div class="pause-setting-item">
+        <span class="pause-setting-label" id="pause-label-base-down" style="color: ${isRotated ? '#6b7280' : '#ffffff'};">本塁が下</span>
+        <label class="pause-toggle-switch">
+          <input type="checkbox" id="setting-ui-rotate" ${isRotated ? 'checked' : ''}>
+          <span class="pause-slider"></span>
+        </label>
+        <span class="pause-setting-label" id="pause-label-base-up" style="color: ${isRotated ? '#ffffff' : '#6b7280'};">本塁が上</span>
+      </div>
+    </div>
+    
+    <button id="resume-btn" style="
+      padding: 12px 30px; font-size: 16px; font-weight: bold;
+      color: white; background-color: #4CAF50; border: none;
+      border-radius: 25px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+    ">▶ ゲーム再開</button>
+  `;
+
+  container.appendChild(overlay);
+
+  // イベントリスナーの設定
+  document.getElementById('resume-btn').onclick = togglePause;
+
+  // 設定変更を保存＆ラベル色をリアルタイム更新
+  document.getElementById('setting-arrow').addEventListener('change', (e) => {
+    localStorage.setItem('setting_show_throw_arrow', e.target.checked);
+    document.getElementById('pause-label-arrow-on').style.color = e.target.checked ? '#ffffff' : '#6b7280';
+    document.getElementById('pause-label-arrow-off').style.color = e.target.checked ? '#6b7280' : '#ffffff';
+  });
+  document.getElementById('setting-ui-rotate').addEventListener('change', (e) => {
+    localStorage.setItem('setting_rotate_runner_ui', e.target.checked);
+    document.getElementById('pause-label-base-up').style.color = e.target.checked ? '#ffffff' : '#6b7280';
+    document.getElementById('pause-label-base-down').style.color = e.target.checked ? '#6b7280' : '#ffffff';
+  });
+}
+
+function togglePause() {
+  const overlay = document.getElementById('pause-overlay');
+  if (!overlay) return;
+
+  if (!isPaused) {
+    // ポーズをオンにする
+    if (!isPlaying) return; // すでに別の理由で停止中（攻撃中など）ならポーズしない
+    isPaused = true;
+    isPlaying = false; 
+    
+    // 現在のスコアボード要素を複製してポーズ画面に表示
+    const scoreArea = document.getElementById('pause-score-area');
+    const mainScoreBoard = document.getElementById('score-board');
+    if (mainScoreBoard && scoreArea) {
+      scoreArea.innerHTML = mainScoreBoard.innerHTML;
+    } else {
+      scoreArea.innerHTML = "<p>スコア情報がありません</p>";
+    }
+
+    overlay.style.display = 'flex';
+  } else {
+    // ポーズを解除する
+    isPaused = false;
+    isPlaying = true;
+    update.lastTime = performance.now(); // 再開時の時間ズレ（ワープ）を防ぐ
+    overlay.style.display = 'none';
+  }
+}
+
+// ページの読み込み完了時にポーズUIを生成
+window.addEventListener('DOMContentLoaded', () => {
+  initGameData();
+  createPauseMenu(); // ← これを追加
+});
+
+// --- ブラウザ非アクティブ時の自動ポーズ ---
+document.addEventListener('visibilitychange', () => {
+  // タブが隠れた、かつ現在ゲームがプレイ中(isPlaying)であればポーズをかける
+  if (document.hidden && isPlaying && !isPaused) {
+    togglePause();
+  }
+});
+
+// ウィンドウからフォーカスが外れた際も念のためポーズ
+window.addEventListener('blur', () => {
+  if (isPlaying && !isPaused) {
+    togglePause();
+  }
+});
+
+
+
 let tutorialBasicCompleted = false;
 let tutorialStep4Done = false;
 let tutorialStep5Done = false;
@@ -375,6 +534,8 @@ function startInning() {
     btn.innerText = `プレイ開始 (${currentDefender}の守備)`;
     btn.onclick = () => {
       attackScreen.classList.add('hidden');
+      const pauseBtn = document.getElementById('pause-btn');
+      if (pauseBtn) pauseBtn.style.display = 'block'; // ★追加: 守備開始時にポーズボタンを表示
       isPlaying = true;
 
       if (typeof ball !== 'undefined') ball.state = 'WAITING';
@@ -389,6 +550,8 @@ function startInning() {
     };
 
     attackScreen.classList.remove('hidden');
+    const pauseBtn = document.getElementById('pause-btn');
+    if (pauseBtn) pauseBtn.style.display = 'none';
 
   // 修正後のコード（296行目付近）
 } else if (isPlayerBatting && (typeof isTutorialMode !== 'undefined' && !isTutorialMode)) {
@@ -603,6 +766,8 @@ function startInning() {
        };
     }
     document.getElementById('attack-screen').classList.remove('hidden');
+    const pauseBtn = document.getElementById('pause-btn');
+    if (pauseBtn) pauseBtn.style.display = 'none';
     
   } else {
     // 【ストーリーモード / チュートリアル：敵攻撃・味方守備フェーズ】
@@ -614,6 +779,9 @@ function startInning() {
     if (attackScreen) {
       attackScreen.classList.add('hidden');
     }
+
+    const pauseBtn = document.getElementById('pause-btn');
+    if (pauseBtn) pauseBtn.style.display = 'block';
 
     if (typeof ball !== 'undefined') ball.state = 'WAITING';
     if (typeof aiFielders !== 'undefined') aiFielders = [];
@@ -689,11 +857,12 @@ function hitBall() {
   ball.errantFenceCount = 0;
   ball.isErrant = false;
   ball.hasHitFence = false;
-  ball.fenceImpactPredicted = false; // ★ 追加：予測が完了したかのフラグ
-  ball.predictedFencePoint = null;   // ★ 追加：予測された激突地点の座標
+  ball.fenceImpactPredicted = false;
+  ball.predictedFencePoint = null;
   ball.batterAdvanced = false;
-  ball.isTouchedByInfielder = false; // ★ 追加：内野手がボールに触れたか
-  ball.isDistanceExceeded700 = false; // ★ 追加：本塁からの距離が700を超えたか
+  ball.isTouchedByInfielder = false;
+  ball.isDistanceExceeded700 = false;
+  ball.scoredRunnersThisPlay = []; // ★ 追加：このプレイで生還した走者を記録
 
   // AI野手生成
   aiFielders = POSITIONS
@@ -968,17 +1137,54 @@ function handlePointerUp(e) {
   }
 }
 
-// 走者がフォース状態（進塁義務がある）かを判定する関数
 function isForceRunner(runner, allRunners) {
-  // 打者走者（0塁スタート）は常にフォース状態
-  if (runner.startBase === 0) return true;
+  // すでに次の塁（フォース先の塁）に到達してストップしている場合はフォース解除
+  // （例：1塁到達済みの打者走者がベースから離れた場合、タッチアウトが必要）
+  if (runner.reached && runner.nextBase > runner.startBase) {
+    return false;
+  }
 
-  // 本塁から自分の1つ手前の塁まで、すべての塁に走者が揃っているか確認
+  // 打者走者（0塁スタート）の処理
+  if (runner.startBase === 0) {
+    // 1塁に向かっている途中（まだ1塁に到達していない）であればフォース状態
+    return runner.nextBase === 1 && !runner.reached;
+  }
+
+  // 元から塁にいた走者（1塁、2塁、3塁スタート）の処理
+  // 本塁(b=0)から自分の1つ手前の塁まで、すべてに非アウトの走者が揃っているか確認
   for (let b = 0; b < runner.startBase; b++) {
     const hasRunner = allRunners.some(r => r !== runner && !r.isOut && r.startBase === b);
-    if (!hasRunner) return false; // 1つでも空き塁があればタッチが必要（非フォース）
+    if (!hasRunner) return false; // 1つでも空き塁・アウトがあればタッチが必要
   }
+  
   return true;
+}
+
+// ★ 追加：第3アウトがフォースアウトの際に、そのプレイでの得点を取り消す関数
+function cancelRunsScoredThisPlay() {
+  if (ball.scoredRunnersThisPlay && ball.scoredRunnersThisPlay.length > 0) {
+    ball.scoredRunnersThisPlay.forEach(r => {
+      if (typeof isVsMode !== 'undefined' && isVsMode) {
+        if (isTopInning) {
+          playerScore--;
+          playerInningScores[currentInning - 1]--;
+        } else {
+          opponentScore--;
+          opponentInningScores[currentInning - 1]--;
+        }
+      } else {
+        opponentScore--;
+        opponentInningScores[currentInning - 1]--;
+      }
+      currentGameStats.pitcher.runs--;
+      const isRunnerReachedByError = !!r.reachedByError;
+      const isScoredByError = !!r.advancedByError || currentPlayError;
+      if (!isRunnerReachedByError && !isScoredByError) {
+        currentGameStats.pitcher.er--;
+      }
+    });
+    ball.scoredRunnersThisPlay = []; // リセット
+  }
 }
 
 function attemptForceOut(baseIndex) {
@@ -987,8 +1193,14 @@ function attemptForceOut(baseIndex) {
     if (!r.isOut && !r.reached && (r.nextBase % 4 === baseIndex) && isForceRunner(r, runners)) {
       r.isOut = true;
       outs++;
-      currentGameStats.pitcher.outs++; // ★ 追加
+      currentGameStats.pitcher.outs++; 
       gotOut = true;
+      
+      // ★ 追加: 第3アウトがフォースアウトの場合、得点を取り消す
+      if (outs === 3) {
+        cancelRunsScoredThisPlay();
+      }
+
       statusDisplay.innerText = `アウト！`;
       updateScoreBoard();
     }
@@ -1538,6 +1750,12 @@ if (distToBall < 35 && (ball.state === 'ROLLING' || (ball.state === 'THROWN' && 
       r.isOut = true;
       outs++;
       currentGameStats.pitcher.outs++; 
+      
+      // ★ 追加: 第3アウトがフォース状態の走者へのタッチアウトの場合も得点取り消し
+      if (outs === 3 && isForceRunner(r, runners)) {
+        cancelRunsScoredThisPlay();
+      }
+
       statusDisplay.innerText = `タッチアウト！`;
       updateScoreBoard();
 
@@ -1867,6 +2085,10 @@ BASES.forEach((base, index) => {
             currentGameStats.pitcher.er++;
           }
 
+          // ★ 追加：得点取り消し用に記録
+          if (!ball.scoredRunnersThisPlay) ball.scoredRunnersThisPlay = [];
+          ball.scoredRunnersThisPlay.push(r);
+
           if (isRunnerReachedByError || isScoredByError) {
             statusDisplay.innerText = "【ホームイン！】 エラーにより失点しました！";
           } else {
@@ -2031,10 +2253,18 @@ if (outs >= 3) {
   });
 
   // 7-9. 送球矢印
-  if (relayMode && (moveVector.x !== 0 || moveVector.y !== 0)) {
+  const showThrowArrow = localStorage.getItem('setting_show_throw_arrow') !== 'false';
+  const isHoldingBall = ball.state === 'HELD' || ball.state === 'CAUGHT' || ball.state === 'OF_HELD';
+
+  // ★ 変更: トグルがON、または塁上にいる(relayMode)場合は矢印を表示する
+  if (isHoldingBall && (moveVector.x !== 0 || moveVector.y !== 0) && (showThrowArrow || relayMode)) {
     ctx.save();
     ctx.translate(ball.x, ball.y);
-    ctx.rotate(throwAimAngle);
+    
+    // 中継モード時は throwAimAngle、それ以外はパッド入力の moveVector から角度を計算
+    const arrowAngle = relayMode ? throwAimAngle : Math.atan2(moveVector.y, moveVector.x);
+    ctx.rotate(arrowAngle);
+    
     ctx.translate(40, 0);
     ctx.fillStyle = 'rgba(255, 50, 50, 0.9)';
     ctx.beginPath();
@@ -2165,13 +2395,15 @@ function drawRunnerUI(ctx) {
   ctx.translate(WORLD_WIDTH - 60, 65); 
 
   // --- 1. ランナー状況の塁間ライン描画 ---
+  const uiRot = localStorage.getItem('setting_rotate_runner_ui') === 'true' ? -1 : 1;
+
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(0, 20);  
-  ctx.lineTo(-20, 0); 
-  ctx.lineTo(0, -20); 
-  ctx.lineTo(20, 0);  
+  ctx.moveTo(0, 20 * uiRot);  
+  ctx.lineTo(-20 * uiRot, 0); 
+  ctx.lineTo(0, -20 * uiRot); 
+  ctx.lineTo(20 * uiRot, 0);  
   ctx.closePath();
   ctx.stroke();
 
@@ -2195,9 +2427,9 @@ function drawRunnerUI(ctx) {
     ctx.stroke();
   };
 
-  drawBase(20, 0, has1B);   // 1塁
-  drawBase(0, -20, has2B);  // 2塁
-  drawBase(-20, 0, has3B);  // 3塁
+  drawBase(20 * uiRot, 0, has1B);         // 1塁
+  drawBase(0, -20 * uiRot, has2B);        // 2塁
+  drawBase(-20 * uiRot, 0, has3B);        // 3塁
 
   // --- 2. アウトカウントの描画 ---
   ctx.fillStyle = 'white';
@@ -2551,6 +2783,12 @@ function resetGameState() {
   isWaitingNextPlay = false;
   playResolved = true;
 
+  if (typeof isPaused !== 'undefined') {
+    isPaused = false;
+    const overlay = document.getElementById('pause-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
   // ★ ボール・プレイヤー・AIの状態をクリア
   ball.state = 'WAITING';
   ball.vx = 0;
@@ -2787,7 +3025,7 @@ isTutorialMode = true;
 
 const TUTORIAL_STEPS = [
   { step: 0, text: "パッドを操作し、打球が飛んでくる位置に内野手を移動させます。", trigger: "start" },
-  { step: 1, text: "打球が飛んで来たら、右のボタンを<strong style='color: #ff4d4d; font-size: 1.1em;'>長押し</strong>で捕球！", trigger: "ball_rolling" },
+  { step: 1, text: "打球が飛んで来たら、右のボタンを<strong style='color: #ff4d4d; font-size: 1.1em;'>長押し開始</strong>で捕球！", trigger: "ball_rolling" },
   { step: 2, text: "<strong style='color: #ff4d4d; font-size: 1.1em;'>⚠️ 長押し状態をキープ！</strong><br>長押ししている間は、球を保持したまま内野手をパッドで操作できます。", trigger: "ball_held" },
   { step: 3, text: "<strong style='color: #ff4d4d; font-size: 1.1em;'>⚠️ 長押し状態をキープ！</strong><br>右のボタンを離すと、パッドが傾いている方向に球を送球します。パッドに触れていない時は、送球できません。", trigger: "holding_wait" },
   { step: 4, text: "球を保持した状態で直接ランナーをタッチするか、ランナーが次の塁に到達する前に球を塁に投げる or 塁を踏むと、ランナーをアウトにできます。", trigger: "play_continue" },
@@ -2839,7 +3077,7 @@ function updateTutorialArrow(stepIndex) {
   let targetEl = null;
   if (stepIndex === 0) {
     targetEl = document.getElementById('padContainer');
-  } else if (stepIndex === 1) {
+} else if (stepIndex === 1 || stepIndex === 6) {
     targetEl = document.getElementById('actionBtn');
   }
 
